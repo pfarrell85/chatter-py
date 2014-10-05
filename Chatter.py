@@ -225,6 +225,51 @@ class MulticastDiscoveryListener:
 		print "MulticastDiscoveryListener stop"
 		self.listen_stop = True
 
+class Buddy:
+
+	def __init__(self):
+		self.name = ""
+		self.last_heard = -1
+		self.active = False
+		self.ip = ""
+
+class BuddyList:
+
+	def __init__(self):
+		self.list = []
+
+	# Any time a new buddy discovery message is received, it should pass through this function
+	# to see if we already know about this buddy, add them to the buddy list, and update their last heard from time.
+	def processBuddyDiscoveryMessage(self, q_message):
+
+		self.addBuddy(q_message.message)
+
+	def addBuddy(self, new_buddy_name):
+		# First check if we know about this buddy
+		have_buddy = self.checkForBuddy(new_buddy_name)
+		new_buddy = Buddy()
+		new_buddy.name = new_buddy_name
+		new_buddy.active = True
+
+		# If we don't have this buddy in our list, add the buddy
+		if have_buddy == False:
+			print "Adding new buddy %s to the list" % new_buddy.name
+			self.list.append(new_buddy)
+		else:
+				print "We already have this buddy %s" % new_buddy.name
+				pass
+
+	def checkForBuddy(self, new_buddy_name):
+		for index, buddy in enumerate(self.list):
+			print index, buddy.name
+
+			# We found this buddy in our list
+			if buddy.name == new_buddy_name:
+				return True
+
+		# We didn't find the buddy in the list
+		return False
+
 class GuiPart:
 
 	def __init__(self, master, message_queue, endCommand):
@@ -233,6 +278,7 @@ class GuiPart:
 		self.message_queue = message_queue
 		self.stop = False
 		self.endCommand = endCommand
+		self.buddy_list = BuddyList()
 
 		self.initialize()
 
@@ -278,6 +324,10 @@ class GuiPart:
 			try:
 				print "got queue message"
 				q_message = self.message_queue.get(0)
+
+				# Check if this is a discovery message and if we already know about this buddy.
+				buddy_name = q_message.message
+				self.buddy_list.processBuddyDiscoveryMessage(q_message)
 
 				if q_message.messageType == 0:
 					self.messageWindow.insert(INSERT, q_message.message + "\n")
