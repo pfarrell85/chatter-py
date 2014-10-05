@@ -31,6 +31,7 @@ import threading
 import platform
 import Queue
 import socket
+import json
 
 MULTICAST_DISCOVERY_ADDRESS = "238.123.45.67"
 MULTICAST_DISCOVERY_PORT = 5768
@@ -127,16 +128,22 @@ class MulticastDiscoverySender:
 	def __init__(self):
 		self.send_stop = False
 		self.host_ip = "192.168.1.129"
+		self.user_name = "Patrick"
 
 		self.socketHelper = MulticastSocketHelper(send_socket=True)
 		self.mcastsock = self.socketHelper.getSocket()
 
 	def sendPeriodicDiscoveryMessageThread(self):
 		print "sendPeriodicDiscoveryMessage TODO"
+		discovery_message = {}
+		discovery_message['name'] = self.user_name
+		discovery_message['ip'] = self.host_ip
+
+		discovery_message_json = json.dumps(discovery_message)
 
 		while self.send_stop == False:
 			print "sending periodic message"
-			self.mcastsock.sendto(self.host_ip, (MULTICAST_DISCOVERY_ADDRESS, MULTICAST_DISCOVERY_PORT))
+			self.mcastsock.sendto(discovery_message_json, (MULTICAST_DISCOVERY_ADDRESS, MULTICAST_DISCOVERY_PORT))
 			time.sleep(1)
 
 	def stopSending(self):
@@ -201,9 +208,13 @@ class MulticastDiscoveryListener:
 		#       There should be some layer that makes the decision what to send to the GUI based on what is
 		#       being received by the network.
 
+		# Convert the message from the socket to a dictionary
+		# TODO: Need to validate that this is a valid JSON structure.
+		message = json.loads(data)
+
 		q_message = QueueMessage()
 		q_message.setClientIP(addr)
-		q_message.setMessage(data)
+		q_message.setMessage(message['name'])
 
 		message_queue.put(q_message)
 
