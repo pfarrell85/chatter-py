@@ -29,6 +29,7 @@ import Tkconstants, tkFileDialog
 import tkMessageBox as box
 import threading
 import platform
+import Queue
 import socket
 
 MULTICAST_DISCOVERY_ADDRESS = "238.123.45.67"
@@ -142,6 +143,24 @@ class MulticastDiscoverySender:
 		print "MulticastDiscoverySender stop"
 		self.send_stop = True
 
+class QueueMessage():
+
+	DISCOVERY_MESSAGE = 0
+
+	def __init__(self):
+		self.ip = ""
+		self.messageType = self.DISCOVERY_MESSAGE
+		self.message = ""
+
+	def setClientIP(self, ip):
+		self.ip = ip
+
+	def setMessageType(self, msgType):
+		self.messageType = msgType
+
+	def setMessage(self, message):
+		self.message = message
+
 class MulticastDiscoveryListener:
 
 	"""This class listens on a multicast socket for discovery messages from other Chatter users
@@ -155,7 +174,7 @@ class MulticastDiscoveryListener:
 		self.socketHelper = MulticastSocketHelper(send_socket=False)
 		self.mcastsock = self.socketHelper.getSocket()
 
-	def networkReceiveThread(self):
+	def networkReceiveThread(self, message_queue):
 
 		print "networkRecieve: Waiting for packet"
 
@@ -171,14 +190,25 @@ class MulticastDiscoveryListener:
 				#print 'Expection'
 
 			if data_length > 0:
-				length = self.parseDiscoveryPacket(data, addr)
+				length_remaining = self.parseDiscoveryPacket(data, addr, message_queue)
 
-	def parseDiscoveryPacket(self, data, addr):
+	def parseDiscoveryPacket(self, data, addr, message_queue):
 
-		length = 0
-		print "TODO"
+		length_parsed = len(data)
 
-		return length
+		# Add the Message to the Queue so it can be added to the GUI
+		# TODO: I don't like that the GUI is going to have to make the decision to display this information.
+		#       There should be some layer that makes the decision what to send to the GUI based on what is
+		#       being received by the network.
+
+		q_message = QueueMessage()
+		q_message.setClientIP(addr)
+		q_message.setMessage(data)
+
+		message_queue.put(q_message)
+
+		# Return the length of the data that is left to parse
+		return (len(data) - length_parsed)
 
 	def stopListen(self):
 		print "MulticastDiscoveryListener stop"
@@ -186,9 +216,10 @@ class MulticastDiscoveryListener:
 
 class GuiPart:
 
-	def __init__(self, master, endCommand):
+	def __init__(self, master, message_queue, endCommand):
 
 		self.master = master
+		self.message_queue = message_queue
 		self.stop = False
 		self.endCommand = endCommand
 
@@ -230,9 +261,19 @@ class GuiPart:
 
 	def processIncoming(self):
 		"""
-		Handle all the messages currently in the queue to add to the GUI display (if any).
+		Handle all the messages currently in the queue (if any).
 		"""
-		pass
+		while self.message_queue.qsize():
+			try:
+				print "got queue message"
+				q_message = self.message_queue.get(0)
+
+				if q_message.messageType == 0:
+					self.messageWindow.insert(INSERT, q_message.message + "\n")
+					self.messageWindow.pack()
+			except Queue.Empty:
+				pass
+
 
 	def exitCallback(self):
 		if box.askquestion("Question", "Are you sure to quit?") == 'yes':
@@ -256,7 +297,7 @@ class GuiPart:
 class ChatterApp:
 
 	START_MULTICAST_DISCOVERY_SENDER_THREAD = True
-	START_MULTICAST_DISCOVERY_LISTENER_THREAD = False
+	START_MULTICAST_DISCOVERY_LISTENER_THREAD = True
 	START_TCP_LISTENER_THREAD = False
 
 	def __init__(self, master, *args, **kwargs):
@@ -265,10 +306,14 @@ class ChatterApp:
 		(original) thread of the application, which will later be used by
 		the GUI. We spawn a new thread for the worker.
 		"""
+
+		# Create the queue
+		self.message_queue = Queue.Queue()
+
 		self.master = master
 
 		# Set up the GUI part
-		self.gui = GuiPart(master, self.endApplication)
+		self.gui = GuiPart(master, self.message_queue, self.endApplication)
 
 		# Start threads to do asynchronous I/O
 		if self.START_MULTICAST_DISCOVERY_SENDER_THREAD == True:
@@ -319,7 +364,7 @@ class ChatterApp:
 		One important thing to remember is that the thread has to yield
 		control.
 		"""
-		self.mcastDiscoveryListener.networkReceiveThread()
+		self.mcastDiscoveryListener.networkReceiveThread(self.message_queue)
 
 	def tcpListenerThread(self):
 		"""
