@@ -242,22 +242,26 @@ class BuddyList:
 	# to see if we already know about this buddy, add them to the buddy list, and update their last heard from time.
 	def processBuddyDiscoveryMessage(self, q_message):
 
-		self.addBuddy(q_message.message)
+		return self.addBuddy(q_message.message)
 
 	def addBuddy(self, new_buddy_name):
 		# First check if we know about this buddy
 		have_buddy = self.checkForBuddy(new_buddy_name)
 		new_buddy = Buddy()
 		new_buddy.name = new_buddy_name
-		new_buddy.active = True
 
 		# If we don't have this buddy in our list, add the buddy
 		if have_buddy == False:
 			print "Adding new buddy %s to the list" % new_buddy.name
+			new_buddy.active = True
 			self.list.append(new_buddy)
+			return True
 		else:
-				print "We already have this buddy %s" % new_buddy.name
-				pass
+			# We already have this buddy
+			# TODO: Update their last heard from time.
+			pass
+
+		return False
 
 	def checkForBuddy(self, new_buddy_name):
 		for index, buddy in enumerate(self.list):
@@ -325,13 +329,14 @@ class GuiPart:
 				print "got queue message"
 				q_message = self.message_queue.get(0)
 
-				# Check if this is a discovery message and if we already know about this buddy.
-				buddy_name = q_message.message
-				self.buddy_list.processBuddyDiscoveryMessage(q_message)
-
 				if q_message.messageType == 0:
-					self.messageWindow.insert(INSERT, q_message.message + "\n")
-					self.messageWindow.pack()
+					# Check if this is a discovery message and if we already know about this buddy.
+					buddy_name = q_message.message
+					
+					if self.buddy_list.processBuddyDiscoveryMessage(q_message):
+						self.messageWindow.insert(INSERT, q_message.message + "\n")
+						self.messageWindow.pack()
+
 			except Queue.Empty:
 				pass
 
