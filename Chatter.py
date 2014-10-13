@@ -36,6 +36,25 @@ import json
 MULTICAST_DISCOVERY_ADDRESS = "238.123.45.67"
 MULTICAST_DISCOVERY_PORT = 5768
 
+class TCPSocketHelper:
+
+	def __init__(self):
+		print "TCPSocketHelper constructor"
+
+	def createTCPSocket(self):
+
+		print "createTCPSocket"
+		#TODO Create 
+		# Create a TCP/IP socket
+		tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+		# Bind the socket to the port
+		server_address = ('localhost', 10000)
+		print >>sys.stderr, 'starting up on %s port %s' % server_address
+		tcpsock.bind(server_address)
+
+		return tcpsock
+
 class MulticastSocketHelper:
 
 	def __init__(self, send_socket):
@@ -274,6 +293,47 @@ class BuddyList:
 		# We didn't find the buddy in the list
 		return False
 
+class ChatServer:
+
+	def __init__(self):
+
+		print "ChatServer constructor"
+		self.listen_stop = False
+		tcpsocketHelper = TCPSocketHelper()
+		self.tcpsock = tcpsocketHelper.createTCPSocket()
+
+	def runServer(self):
+
+		print "runServer"
+		# Listen for incoming connections
+		self.tcpsock.listen(1)
+
+		while self.listen_stop == False:
+			# Wait for a connection
+			print >>sys.stderr, 'waiting for a connection'
+			connection, client_address = self.tcpsock.accept()
+
+			try:
+				print >>sys.stderr, 'connection from', client_address
+
+				# Receive the data in small chunks and retransmit it
+				while True:
+					data = connection.recv(16)
+					print >>sys.stderr, 'received "%s"' % data
+					if data:
+						print >>sys.stderr, 'sending data back to the client'
+					connection.sendall(data)
+				else:
+					print >>sys.stderr, 'no more data from', client_address
+					break
+				
+			finally:
+				# Clean up the connection
+				connection.close()
+
+	def stopListen(self):
+		self.listen_stop = True
+
 class GuiPart:
 
 	def __init__(self, master, message_queue, endCommand):
@@ -323,18 +383,21 @@ class GuiPart:
 	def processIncoming(self):
 		"""
 		Handle all the messages currently in the queue (if any).
+		This function gets called periodically to allow us to update the GUI asynchronously from events
+		happening on the network.
 		"""
 		while self.message_queue.qsize():
 			try:
 				print "got queue message"
 				q_message = self.message_queue.get(0)
 
-				if q_message.messageType == 0:
-					# Check if this is a discovery message and if we already know about this buddy.
+				if q_message.messageType == 0: #TODO Add enum for buddy discovery message
+
 					buddy_name = q_message.message
-					
+
+					# Check if we already know about this buddy.				
 					if self.buddy_list.processBuddyDiscoveryMessage(q_message):
-						self.messageWindow.insert(INSERT, q_message.message + "\n")
+						self.messageWindow.insert(INSERT, buddy_name + "\n")
 						self.messageWindow.pack()
 
 			except Queue.Empty:
@@ -362,9 +425,9 @@ class GuiPart:
 
 class ChatterApp:
 
-	START_MULTICAST_DISCOVERY_SENDER_THREAD = True
-	START_MULTICAST_DISCOVERY_LISTENER_THREAD = True
-	START_TCP_LISTENER_THREAD = False
+	START_MULTICAST_DISCOVERY_SENDER_THREAD = False
+	START_MULTICAST_DISCOVERY_LISTENER_THREAD = False
+	START_TCP_LISTENER_THREAD = True
 
 	def __init__(self, master, *args, **kwargs):
 		"""
@@ -393,8 +456,9 @@ class ChatterApp:
 			self.mcastDiscoverThread.start()
 
 		if self.START_TCP_LISTENER_THREAD == True:
-			self.thread2 = threading.Thread(target=self.tcpListenerThread)
-			self.thread2.start()
+			self.chatServer = ChatServer()
+			self.chatServerThread = threading.Thread(target=self.tcpListenerThread)
+			self.chatServerThread.start()
 
 		# Start the periodic call in the GUI to check if the queue contains
 		# anything
@@ -436,7 +500,7 @@ class ChatterApp:
 		"""
 			This thread we listen for incomming connections from other users
 		"""
-		print "TODO"
+		self.chatServer.runServer()
 
 	def endApplication(self):
 		if self.START_MULTICAST_DISCOVERY_SENDER_THREAD:
@@ -444,6 +508,9 @@ class ChatterApp:
 
 		if self.START_MULTICAST_DISCOVERY_LISTENER_THREAD:
 			self.mcastDiscoveryListener.stopListen()
+
+		if self.START_TCP_LISTENER_THREAD:
+			self.chatServer.stopListen()
 
 		self.running = 0
 		sys.exit()
