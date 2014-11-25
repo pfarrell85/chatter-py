@@ -172,9 +172,12 @@ class MulticastDiscoverySender:
 class QueueMessage():
 
 	DISCOVERY_MESSAGE = 0
+	INCOMING_MESSAGE = 1
+	OUTGOING_MESSAGE = 2
 
 	def __init__(self):
 		self.ip = ""
+		self.username = ""
 		self.messageType = self.DISCOVERY_MESSAGE
 		self.message = ""
 
@@ -183,6 +186,9 @@ class QueueMessage():
 
 	def setMessageType(self, msgType):
 		self.messageType = msgType
+
+	def setUserName(self, username):
+		self.username = username
 
 	def setMessage(self, message):
 		self.message = message
@@ -302,34 +308,96 @@ class ChatServer:
 		tcpsocketHelper = TCPSocketHelper()
 		self.tcpsock = tcpsocketHelper.createTCPSocket()
 
-	def runServer(self):
+	def runServer(self, message_queue):
 
 		print "runServer"
 		# Listen for incoming connections
 		self.tcpsock.listen(1)
+		self.activeConnections = {}
+		self.sendMessageToGUI = True
 
 		while self.listen_stop == False:
 			# Wait for a connection
 			print >>sys.stderr, 'waiting for a connection'
 			connection, client_address = self.tcpsock.accept()
 
+			# TODO: Need a way of storing connections based on a connection seq no rather than client address
+			# because we could have multiple connections from a client.  Although we could also prevent this on the client side.
+
+			# TODO: When we receive a connection, we need to spawn a new thread here so we can talk to the client that just connected
+			#       while also listening for new connections to come in.
+
+			# It may be easier at first to just close the connection every time.  That way any time we recieve a message, we don't have to manage
+			# multiple sockets, we just recieve the message, and pass the message to the GUI.  If we want to send a message to a client, we can
+			# create a connection, send the message, then close it.  May be more overhead but will keep this program simplier for now.
+			self.activeConnections[client_address[0]] = connection
+
 			try:
 				print >>sys.stderr, 'connection from', client_address
+				print "Client %s:%d" % (client_address[0], client_address[1])
 
 				# Receive the data in small chunks and retransmit it
-				while True:
-					data = connection.recv(16)
-					print >>sys.stderr, 'received "%s"' % data
-					if data:
-						print >>sys.stderr, 'sending data back to the client'
+				data = connection.recv(64)
+				print >>sys.stderr, 'received "%s"' % data
+
+				if self.sendMessageToGUI:
+					message = json.loads(data)
+
+					if message:
+						print "Got json message"
+						print "Username = %s" % message['username']
+						print "Message = %s" % message['message']
+
+					q_message = QueueMessage()
+					q_message.setMessageType(QueueMessage.INCOMING_MESSAGE)
+					q_message.setClientIP(client_address[0])
+					q_message.setUserName(message['username'])
+					q_message.setMessage(message['message'])
+
+					message_queue.put(q_message)
+
+				if data:
+					print >>sys.stderr, 'sending data back to the client'
 					connection.sendall(data)
-				else:
-					print >>sys.stderr, 'no more data from', client_address
-					break
 				
 			finally:
 				# Clean up the connection
-				connection.close()
+				self.closeConnection(self.activeConnections[client_address[0]])
+
+	def sendOutgoingMessage(self, buddy_address, buddy_port, message):
+		# TODO: This function receives a message from the GUI and sends the message to the client specified if they are connected.
+
+		# Create a TCP/IP socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+		# Connect the socket to the port where the server is listening
+		destination_address = (buddy_address, buddy_port)
+		print >>sys.stderr, 'connecting to %s port %s' % server_address
+		sock.connect(server_address)
+
+		try:
+		    
+		    # Send data
+		    message = 'This is the message 2.  It will be repeated.'
+		    print >> sys.stderr, 'sending "%s"' % message
+		    sock.sendall(message)
+
+		    # Look for the response
+		    amount_received = 0
+		    amount_expected = len(message)
+		    
+		    while amount_received < amount_expected:
+		        data = sock.recv(64)
+		        amount_received += len(data)
+		        print >>sys.stderr, 'received "%s"' % data
+
+		finally:
+		    print >>sys.stderr, 'closing socket'
+		    sock.close()
+
+	def closeConnection(self, connection):
+		print "closing connection"
+		connection.close()
 
 	def stopListen(self):
 		self.listen_stop = True
@@ -391,7 +459,7 @@ class GuiPart:
 				print "got queue message"
 				q_message = self.message_queue.get(0)
 
-				if q_message.messageType == 0: #TODO Add enum for buddy discovery message
+				if q_message.messageType == QueueMessage.DISCOVERY_MESSAGE: #TODO Add enum for buddy discovery message
 
 					buddy_name = q_message.message
 
@@ -399,6 +467,11 @@ class GuiPart:
 					if self.buddy_list.processBuddyDiscoveryMessage(q_message):
 						self.messageWindow.insert(INSERT, buddy_name + "\n")
 						self.messageWindow.pack()
+
+				elif q_message.messageType == QueueMessage.INCOMING_MESSAGE:
+
+					self.messageWindow.insert(INSERT, q_message.username + ": " + q_message.message + "\n")
+					self.messageWindow.pack()
 
 			except Queue.Empty:
 				pass
@@ -414,6 +487,11 @@ class GuiPart:
 
 		self.messageWindow.insert(INSERT, newMessage + "\n")
 		self.messageWindow.pack()
+
+		# When we hit the send button, it needs to send a messaage back into the Chat server to create a socket
+		# and send the message to the client.
+
+		
 
 	def helpCallback(self):
 		box.showinfo("Information", "Chatter")
@@ -500,7 +578,7 @@ class ChatterApp:
 		"""
 			This thread we listen for incomming connections from other users
 		"""
-		self.chatServer.runServer()
+		self.chatServer.runServer(self.message_queue)
 
 	def endApplication(self):
 		if self.START_MULTICAST_DISCOVERY_SENDER_THREAD:
