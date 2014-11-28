@@ -59,7 +59,7 @@ class MulticastSocketHelper:
 
 	def __init__(self, send_socket):
 		print "Constructor"
-		self.host_ip = "192.168.1.129"
+		self.host_ip = socket.gethostbyname(socket.gethostname())
 
 		if send_socket == True:
 			self.mcastsock = self.createMcastSendSocket()
@@ -305,12 +305,13 @@ class ChatServer:
 
 		print "ChatServer constructor"
 		self.listen_stop = False
-		tcpsocketHelper = TCPSocketHelper()
-		self.tcpsock = tcpsocketHelper.createTCPSocket()
 
 	def runServer(self, message_queue):
 
 		print "runServer"
+		tcpsocketHelper = TCPSocketHelper()
+		self.tcpsock = tcpsocketHelper.createTCPSocket()
+
 		# Listen for incoming connections
 		self.tcpsock.listen(1)
 		self.activeConnections = {}
@@ -378,7 +379,6 @@ class ChatServer:
 		try:
 		    
 		    # Send data
-		    message = 'This is the message 2.  It will be repeated.'
 		    print >> sys.stderr, 'sending "%s"' % message
 		    sock.sendall(message)
 
@@ -386,10 +386,10 @@ class ChatServer:
 		    amount_received = 0
 		    amount_expected = len(message)
 		    
-		    while amount_received < amount_expected:
-		        data = sock.recv(64)
-		        amount_received += len(data)
-		        print >>sys.stderr, 'received "%s"' % data
+		    #while amount_received < amount_expected:
+		    #    data = sock.recv(64)
+		    #    amount_received += len(data)
+		    #    print >>sys.stderr, 'received "%s"' % data
 
 		finally:
 		    print >>sys.stderr, 'closing socket'
