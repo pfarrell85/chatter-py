@@ -493,16 +493,15 @@ class GuiPart:
 			print "Ending application"
 
 	def sendCallback(self):
-		print "TODO: Implement send callback"
-		newMessage = self.message_input.get()
+		messageText = self.message_input.get()
 
-		self.messageWindow.insert(INSERT, newMessage + "\n")
+		self.messageWindow.insert(INSERT, messageText + "\n")
 		self.messageWindow.pack()
 
 		# When we hit the send button, it needs to send a messaage back into the Chat server to create a socket
 		# and send the message to the client.
-
-		
+		cs = ChatServer()
+		cs.sendOutgoingMessage("127.0.0.1", 10000, messageText)
 
 	def helpCallback(self):
 		box.showinfo("Information", "Chatter")
