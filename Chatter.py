@@ -416,7 +416,7 @@ class GuiPart:
 
 	def initialize(self):
 
-		self.master.geometry("450x500")
+		self.master.geometry("950x500")
 		# create a menu
 		menu = Menu(self.master)
 		root.config(menu=menu)
@@ -431,22 +431,33 @@ class GuiPart:
 		menu.add_cascade(label="Help", menu=helpmenu)
 		helpmenu.add_command(label="About...", command=self.helpCallback)
 
+		# Message Thread Frame
+		self.messageThreadFrame = Frame(self.master, borderwidth=2, relief=GROOVE)
+		self.messageThreadFrame.pack(side=LEFT, fill=X)
+
 		# Message Display Frame
-		self.messageDisplayFrame = Frame(self.master, borderwidth=2, relief=GROOVE)
+		self.messageDisplayFrame = Frame(self.messageThreadFrame, borderwidth=2, relief=GROOVE)
 		self.messageDisplayFrame.pack(side=TOP, fill=X)
 
 		self.messageWindow = Text(self.messageDisplayFrame, borderwidth=2, relief=GROOVE)
 		self.messageWindow.pack(side=TOP, fill=X)
 
 		# Message Input Frame
-		self.messageInputFrame = Frame(self.master, borderwidth=2, relief=GROOVE)
-		self.messageInputFrame.pack(side=TOP, fill=X)
+		self.messageInputFrame = Frame(self.messageDisplayFrame, borderwidth=2, relief=GROOVE)
+		self.messageInputFrame.pack(side=BOTTOM, fill=X)
 
-		self.message_input = Entry(self.messageInputFrame)
+		self.message_input = Entry(self.messageInputFrame, width=50)
 		self.message_input.pack()
 
 		send_button = Button(self.messageInputFrame, text="Send", width=6, command=self.sendCallback)
 		send_button.pack(side=LEFT, padx=2, pady=2)
+
+		# Buddy List Frame
+		self.buddyListFrame = Frame(self.master, borderwidth=2, relief=GROOVE)
+		self.buddyListFrame.pack(side=RIGHT, fill=X)
+
+		self.buddyListWindow = Text(self.buddyListFrame, borderwidth=2, relief=GROOVE)
+		self.buddyListWindow.pack(side=TOP, fill=X)
 
 	def processIncoming(self):
 		"""
@@ -465,8 +476,8 @@ class GuiPart:
 
 					# Check if we already know about this buddy.				
 					if self.buddy_list.processBuddyDiscoveryMessage(q_message):
-						self.messageWindow.insert(INSERT, buddy_name + "\n")
-						self.messageWindow.pack()
+						self.buddyListWindow.insert(INSERT, buddy_name + "\n")
+						self.buddyListWindow.pack()
 
 				elif q_message.messageType == QueueMessage.INCOMING_MESSAGE:
 
