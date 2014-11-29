@@ -146,7 +146,7 @@ class MulticastDiscoverySender:
 
 	def __init__(self):
 		self.send_stop = False
-		self.host_ip = "192.168.1.129"
+		self.host_ip = socket.gethostbyname(socket.gethostname())
 		self.user_name = "Patrick"
 
 		self.socketHelper = MulticastSocketHelper(send_socket=True)
