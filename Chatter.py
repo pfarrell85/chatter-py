@@ -48,8 +48,10 @@ class TCPSocketHelper:
 		# Create a TCP/IP socket
 		tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+		host_ip = socket.gethostbyname(socket.gethostname())
+
 		# Bind the socket to the port
-		server_address = ('localhost', 10000)
+		server_address = (host_ip, 10002)
 		print >>sys.stderr, 'starting up on %s port %s' % server_address
 		tcpsock.bind(server_address)
 
@@ -152,6 +154,9 @@ class MulticastDiscoverySender:
 		self.socketHelper = MulticastSocketHelper(send_socket=True)
 		self.mcastsock = self.socketHelper.getSocket()
 
+	def setUsername(self, newUsername):
+		self.user_name = newUsername
+
 	def sendPeriodicDiscoveryMessageThread(self):
 		print "sendPeriodicDiscoveryMessage TODO"
 		discovery_message = {}
@@ -235,13 +240,16 @@ class MulticastDiscoveryListener:
 
 		# Convert the message from the socket to a dictionary
 		# TODO: Need to validate that this is a valid JSON structure.
-		message = json.loads(data)
 
-		q_message = QueueMessage()
-		q_message.setClientIP(addr)
-		q_message.setMessage(message['name'])
+		if len(data) > 0:
+			message = json.loads(data)
 
-		message_queue.put(q_message)
+			q_message = QueueMessage()
+			q_message.setClientIP(addr)
+			q_message.setMessage(message['name'])
+
+			# Send the newly received discovery packet to the GUI
+			message_queue.put(q_message)
 
 		# Return the length of the data that is left to parse
 		return (len(data) - length_parsed)
@@ -258,6 +266,12 @@ class Buddy:
 		self.active = False
 		self.ip = ""
 
+	def getName(self):
+		return self.name
+
+	def getIPAddress(self):
+		return self.ip
+
 class BuddyList:
 
 	def __init__(self):
@@ -267,13 +281,15 @@ class BuddyList:
 	# to see if we already know about this buddy, add them to the buddy list, and update their last heard from time.
 	def processBuddyDiscoveryMessage(self, q_message):
 
-		return self.addBuddy(q_message.message)
+		return self.addBuddy(q_message)
 
-	def addBuddy(self, new_buddy_name):
+	def addBuddy(self, buddy_q_message):
 		# First check if we know about this buddy
+		new_buddy_name = buddy_q_message.message
 		have_buddy = self.checkForBuddy(new_buddy_name)
 		new_buddy = Buddy()
 		new_buddy.name = new_buddy_name
+		new_buddy.ip = buddy_q_message.ip[0]
 
 		# If we don't have this buddy in our list, add the buddy
 		if have_buddy == False:
@@ -298,6 +314,9 @@ class BuddyList:
 
 		# We didn't find the buddy in the list
 		return False
+
+	def getBuddy(self, index):
+		return self.list[index]
 
 class ChatServer:
 
@@ -373,8 +392,8 @@ class ChatServer:
 
 		# Connect the socket to the port where the server is listening
 		destination_address = (buddy_address, buddy_port)
-		print >>sys.stderr, 'connecting to %s port %s' % server_address
-		sock.connect(server_address)
+		print >>sys.stderr, 'connecting to %s port %s' % destination_address
+		sock.connect(destination_address)
 
 		try:
 		    
@@ -411,6 +430,7 @@ class GuiPart:
 		self.stop = False
 		self.endCommand = endCommand
 		self.buddy_list = BuddyList()
+		self.myUsername = "pfarrell"
 
 		self.initialize()
 
@@ -423,6 +443,7 @@ class GuiPart:
 
 		filemenu = Menu(menu)
 		menu.add_cascade(label="File", menu=filemenu)
+		filemenu.add_command(label="Set Username", command=self.setUsernameCallback)
 
 		filemenu.add_separator()
 		filemenu.add_command(label="Exit", command=self.exitCallback)
@@ -477,7 +498,7 @@ class GuiPart:
 
 					buddy_name = q_message.message
 
-					# Check if we already know about this buddy.				
+					# Check if we already know about this buddy.
 					if self.buddy_list.processBuddyDiscoveryMessage(q_message):
 						self.buddyListWindow.insert(INSERT, buddy_name + "\n")
 						self.buddyListWindow.pack()
@@ -501,6 +522,9 @@ class GuiPart:
 	def sendCallback(self):
 		self.sendMessage()
 
+	def setUsernameCallback(self):
+		pass
+
 	def sendMessage(self):
 		messageText = self.message_input.get()
 
@@ -509,13 +533,15 @@ class GuiPart:
 			self.messageWindow.pack()
 
 			message_box = {}
-			message_box['username'] = "pfarrell"
+			message_box['username'] = self.myUsername
 			message_box['message'] = messageText
 
+			buddy = self.buddy_list.getBuddy(0)
+	
 			# When we hit the send button, it needs to send a messaage back into the Chat server to create a socket
 			# and send the message to the client.
 			cs = ChatServer()
-			cs.sendOutgoingMessage("127.0.0.1", 10000, json.dumps(message_box))
+			cs.sendOutgoingMessage(buddy.ip, 10000, json.dumps(message_box))
 
 	def helpCallback(self):
 		box.showinfo("Information", "Chatter")
@@ -527,8 +553,8 @@ class GuiPart:
 
 class ChatterApp:
 
-	START_MULTICAST_DISCOVERY_SENDER_THREAD = False
-	START_MULTICAST_DISCOVERY_LISTENER_THREAD = False
+	START_MULTICAST_DISCOVERY_SENDER_THREAD = True
+	START_MULTICAST_DISCOVERY_LISTENER_THREAD = True
 	START_TCP_LISTENER_THREAD = True
 
 	def __init__(self, master, *args, **kwargs):
@@ -538,7 +564,7 @@ class ChatterApp:
 		the GUI. We spawn a new thread for the worker.
 		"""
 
-		# Create the queue
+		# Create the queue to send messages to the GUI
 		self.message_queue = Queue.Queue()
 
 		self.master = master
