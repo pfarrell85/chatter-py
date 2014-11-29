@@ -459,6 +459,9 @@ class GuiPart:
 		self.buddyListWindow = Text(self.buddyListFrame, borderwidth=2, relief=GROOVE)
 		self.buddyListWindow.pack(side=TOP, fill=X)
 
+		# Bind the return key so it sends the message when you press enter
+		self.master.bind('<Return>', self.enterKeyCallback)
+
 	def processIncoming(self):
 		"""
 		Handle all the messages currently in the queue (if any).
@@ -492,16 +495,27 @@ class GuiPart:
 		if box.askquestion("Question", "Are you sure to quit?") == 'yes':
 			print "Ending application"
 
+	def enterKeyCallback(self, event):
+		self.sendMessage()
+
 	def sendCallback(self):
+		self.sendMessage()
+
+	def sendMessage(self):
 		messageText = self.message_input.get()
 
-		self.messageWindow.insert(INSERT, messageText + "\n")
-		self.messageWindow.pack()
+		if len(messageText) > 0:
+			self.messageWindow.insert(INSERT, messageText + "\n")
+			self.messageWindow.pack()
 
-		# When we hit the send button, it needs to send a messaage back into the Chat server to create a socket
-		# and send the message to the client.
-		cs = ChatServer()
-		cs.sendOutgoingMessage("127.0.0.1", 10000, messageText)
+			message_box = {}
+			message_box['username'] = "pfarrell"
+			message_box['message'] = messageText
+
+			# When we hit the send button, it needs to send a messaage back into the Chat server to create a socket
+			# and send the message to the client.
+			cs = ChatServer()
+			cs.sendOutgoingMessage("127.0.0.1", 10000, json.dumps(message_box))
 
 	def helpCallback(self):
 		box.showinfo("Information", "Chatter")
