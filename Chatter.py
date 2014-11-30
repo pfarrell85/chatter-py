@@ -33,8 +33,24 @@ import Queue
 import socket
 import json
 
+try:
+	import netifaces
+except ImportError:
+	raise ImportError,"The netifaces module is required to run this program."
+
 MULTICAST_DISCOVERY_ADDRESS = "238.123.45.67"
 MULTICAST_DISCOVERY_PORT = 5768
+
+
+def getMyIPAddress():
+
+	#socket.gethostbyname(socket.gethostname())
+	dev = "en0"
+	addrs = netifaces.ifaddresses(dev)
+	ipaddrs = addrs[netifaces.AF_INET]
+	host_ip = ipaddrs[0].get('addr')
+
+	return host_ip
 
 class TCPSocketHelper:
 
@@ -48,10 +64,10 @@ class TCPSocketHelper:
 		# Create a TCP/IP socket
 		tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-		host_ip = socket.gethostbyname(socket.gethostname())
+		host_ip = getMyIPAddress()
 
 		# Bind the socket to the port
-		server_address = (host_ip, 10002)
+		server_address = (host_ip, 10000)
 		print >>sys.stderr, 'starting up on %s port %s' % server_address
 		tcpsock.bind(server_address)
 
@@ -61,7 +77,7 @@ class MulticastSocketHelper:
 
 	def __init__(self, send_socket):
 		print "Constructor"
-		self.host_ip = socket.gethostbyname(socket.gethostname())
+		self.host_ip = getMyIPAddress()
 
 		if send_socket == True:
 			self.mcastsock = self.createMcastSendSocket()
@@ -148,8 +164,8 @@ class MulticastDiscoverySender:
 
 	def __init__(self):
 		self.send_stop = False
-		self.host_ip = socket.gethostbyname(socket.gethostname())
-		self.user_name = "Patrick"
+		self.host_ip = getMyIPAddress()
+		self.user_name = "John"
 
 		self.socketHelper = MulticastSocketHelper(send_socket=True)
 		self.mcastsock = self.socketHelper.getSocket()
@@ -211,6 +227,8 @@ class MulticastDiscoveryListener:
 		self.socketHelper = MulticastSocketHelper(send_socket=False)
 		self.mcastsock = self.socketHelper.getSocket()
 
+		self.host_ip = getMyIPAddress()
+
 	def networkReceiveThread(self, message_queue):
 
 		print "networkRecieve: Waiting for packet"
@@ -220,6 +238,11 @@ class MulticastDiscoveryListener:
 			try:
 				data, addr = self.mcastsock.recvfrom(1024)
 				data_length = len(data)
+
+				# Check to make sure the packet didn't come from ourself first, if so, drop it.
+				if addr[0] == self.host_ip:
+					continue
+
 			except KeyboardInterrupt:
 				self.stopListen()
 			except socket.error, e:
