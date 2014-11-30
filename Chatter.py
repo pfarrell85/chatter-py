@@ -30,6 +30,7 @@ import tkMessageBox as box
 import threading
 import platform
 import Queue
+import signal
 import socket
 import json
 
@@ -666,6 +667,10 @@ class ChatterApp:
 		self.running = 0
 		sys.exit()
 
+	def signal_handler(self, signal, frame):
+	        print('You pressed Ctrl+C!')
+	        self.endApplication()
+
 if __name__ == '__main__':
 
 	print "Starting Chatter"
@@ -673,4 +678,5 @@ if __name__ == '__main__':
 	root.title("Chatter")
 
 	app = ChatterApp(root)
+	signal.signal(signal.SIGINT, app.signal_handler)
 	root.mainloop()
