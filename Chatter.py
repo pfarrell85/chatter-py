@@ -501,7 +501,8 @@ class GuiPart:
 		self.buddyListFrame = Frame(self.master, borderwidth=2, relief=GROOVE)
 		self.buddyListFrame.pack(side=RIGHT, fill=X)
 
-		self.buddyListWindow = Text(self.buddyListFrame, borderwidth=2, relief=GROOVE)
+		self.buddyListWindow = Listbox(self.buddyListFrame, borderwidth=2, relief=GROOVE)
+		self.buddyListWindow.bind("<Double-Button-1>", self.OnDouble)
 		self.buddyListWindow.pack(side=TOP, fill=X)
 
 		# Bind the return key so it sends the message when you press enter
@@ -524,7 +525,7 @@ class GuiPart:
 
 					# Check if we already know about this buddy.
 					if self.buddy_list.processBuddyDiscoveryMessage(q_message):
-						self.buddyListWindow.insert(INSERT, buddy_name + "\n")
+						self.buddyListWindow.insert(END, buddy_name + "\n")
 						self.buddyListWindow.pack()
 
 				elif q_message.messageType == QueueMessage.INCOMING_MESSAGE:
@@ -542,6 +543,12 @@ class GuiPart:
 
 	def enterKeyCallback(self, event):
 		self.sendMessage()
+
+	def OnDouble(self, event):
+		widget = event.widget
+		selection=widget.curselection()
+		value = widget.get(selection[0])
+		print "selection:", selection, ": '%s'" % value
 
 	def sendCallback(self):
 		self.sendMessage()
