@@ -278,14 +278,19 @@ class MulticastDiscoveryListener:
 		# TODO: Need to validate that this is a valid JSON structure.
 
 		if len(data) > 0:
-			message = json.loads(data)
+			# If the message we received is JSON, decode the message and send it up to the GUI.
+			try:
+				message = json.loads(data)
 
-			q_message = QueueMessage()
-			q_message.setClientIP(addr)
-			q_message.setMessage(message['name'])
+				# TODO: We should check the message type here and only pass up discovery messages
+				q_message = QueueMessage()
+				q_message.setClientIP(addr)
+				q_message.setMessage(message['name'])
 
-			# Send the newly received discovery packet to the GUI
-			message_queue.put(q_message)
+				# Send the newly received discovery packet to the GUI
+				message_queue.put(q_message)
+			except:
+				print "Error: Message received was not JSON"
 
 		# Return the length of the data that is left to parse
 		return (len(data) - length_parsed)
