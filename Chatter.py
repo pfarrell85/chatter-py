@@ -408,17 +408,13 @@ class ChatServer:
 						print "Username = %s" % message['username']
 						print "Message = %s" % message['message']
 
-					q_message = QueueMessage()
-					q_message.setMessageType(QueueMessage.INCOMING_MESSAGE)
-					q_message.setClientIP(client_address[0])
-					q_message.setUserName(message['username'])
-					q_message.setMessage(message['message'])
+						q_message = QueueMessage()
+						q_message.setMessageType(QueueMessage.INCOMING_MESSAGE)
+						q_message.setClientIP(client_address[0])
+						q_message.setUserName(message['username'])
+						q_message.setMessage(message['message'])
 
-					message_queue.put(q_message)
-
-				if data:
-					print >>sys.stderr, 'sending data back to the client'
-					connection.sendall(data)
+						message_queue.put(q_message)
 				
 			finally:
 				# Clean up the connection
