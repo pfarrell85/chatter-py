@@ -187,12 +187,11 @@ class MulticastDiscoverySender:
 		self.user_name = newUsername
 
 	def sendPeriodicDiscoveryMessageThread(self):
-		print "sendPeriodicDiscoveryMessage TODO"
-		discovery_message = {}
-		discovery_message['name'] = self.user_name
-		discovery_message['ip'] = self.host_ip
+		"""The period messages are sent out as JSON objects with the username, IP address of the source
+		TODO: Should add a message version so it is upgradable."""
 
-		discovery_message_json = json.dumps(discovery_message)
+		print "sendPeriodicDiscoveryMessage TODO"
+		discovery_message_json = ChatterMessage.createDiscoveryMessage(self.user_name, self.host_ip)
 
 		while self.send_stop == False:
 			print "sending periodic message"
@@ -280,7 +279,7 @@ class MulticastDiscoveryListener:
 		if len(data) > 0:
 			# If the message we received is JSON, decode the message and send it up to the GUI.
 			try:
-				message = json.loads(data)
+				message = ChatterMessage.parseDiscoveryMessage(data)
 
 				# TODO: We should check the message type here and only pass up discovery messages
 				q_message = QueueMessage()
