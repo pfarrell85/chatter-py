@@ -397,7 +397,7 @@ class ChatServer:
 				print "Client %s:%d" % (client_address[0], client_address[1])
 
 				# Receive the data in small chunks and retransmit it
-				data = connection.recv(64)
+				data = connection.recv(1024)
 				print >>sys.stderr, 'received "%s"' % data
 
 				if self.sendMessageToGUI:
