@@ -34,10 +34,14 @@ import signal
 import socket
 import json
 
+HAVE_NETIFACES = False
+
 try:
 	import netifaces
+	HAVE_NETIFACES = True
 except ImportError:
-	raise ImportError,"The netifaces module is required to run this program."
+	print "Warning: The netifaces module is recommended to run this program."
+
 
 MULTICAST_DISCOVERY_ADDRESS = "238.123.45.67"
 MULTICAST_DISCOVERY_PORT = 5768
@@ -46,10 +50,18 @@ MULTICAST_DISCOVERY_PORT = 5768
 def getMyIPAddress():
 
 	#socket.gethostbyname(socket.gethostname())
-	dev = "en0"
-	addrs = netifaces.ifaddresses(dev)
-	ipaddrs = addrs[netifaces.AF_INET]
-	host_ip = ipaddrs[0].get('addr')
+
+	if HAVE_NETIFACES:
+		# TODO: Make this generic for different interfaces, run on linux to make sure it works for both eth and wifi devices.
+		dev = "en0"
+		addrs = netifaces.ifaddresses(dev)
+
+	try:
+		ipaddrs = addrs[netifaces.AF_INET]
+		host_ip = ipaddrs[0].get('addr')
+	except:
+		host_ip = "127.0.0.1"
+		print "Please specify IP Address here, using Host IP = %s" % host_ip
 
 	return host_ip
 
