@@ -361,6 +361,15 @@ class BuddyList:
 	def getBuddy(self, index):
 		return self.list[index]
 
+	def getBuddyByName(self, name):
+		for index, buddy in enumerate(self.list):
+			# We found this buddy in our list
+			if buddy.name == name:
+				return buddy
+
+		# We didnt' find the buddy in the list
+		return None
+
 class ChatServer:
 
 	def __init__(self):
@@ -582,8 +591,16 @@ class GuiPart:
 			message_box['username'] = self.myUsername
 			message_box['message'] = messageText
 
-			buddy = self.buddy_list.getBuddy(0)
-	
+			# The ListBox contains the name right now so look up buddy by name.
+			# TODO: this is limiting because two people can't have the same name.  Change the list to
+			# be backed by objects and be able to look up by user_names.
+			buddyNameFromDisplayList = self.buddyListWindow.get(self.buddyListWindow.curselection())
+
+			buddy = self.buddy_list.getBuddyByName(buddyNameFromDisplayList.strip())
+			if buddy == None:
+				print "Error: couldn't find buddy %s" % buddyNameFromDisplayList
+				return
+
 			# When we hit the send button, it needs to send a messaage back into the Chat server to create a socket
 			# and send the message to the client.
 			cs = ChatServer()
