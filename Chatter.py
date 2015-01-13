@@ -642,6 +642,28 @@ class GuiPart:
 	def enterKeyCallback(self, event):
 		self.sendMessage()
 
+	def getBuddyMessageWindow(self):
+
+		NewWin = Toplevel(master=self.master)
+		NewWin.title('New Window')
+		NewWin.geometry('300x300')
+		self.NewWinButton.config(state='disable')
+
+		message_input = Entry(NewWin, width=50)
+		message_input.pack()
+
+		new_send_button = Button(NewWin, text="Send", width=6, command=self.sendCallback)
+		new_send_button.bind("<Return>", self.sendCallback)
+		new_send_button.pack(side=LEFT, padx=2, pady=2)
+
+		def quit_win():
+			NewWin.destroy()
+			self.NewWinButton.config(state='normal')
+
+		QuitButton = Button(NewWin,text='Quit',command=quit_win)
+		QuitButton.pack()
+
+		NewWin.protocol("WM_DELETE_WINDOW", quit_win)
 
 	def cleanupBuddyList(self):
 
