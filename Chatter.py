@@ -485,6 +485,8 @@ class GuiPart:
 	def initialize(self):
 
 		self.master.geometry("950x500")
+		bg_color = 'Grey'
+		message_window_color = 'White'
 		# create a menu
 		menu = Menu(self.master)
 		root.config(menu=menu)
@@ -500,34 +502,54 @@ class GuiPart:
 		menu.add_cascade(label="Help", menu=helpmenu)
 		helpmenu.add_command(label="About...", command=self.helpCallback)
 
-		# Message Thread Frame
-		self.messageThreadFrame = Frame(self.master, borderwidth=2, relief=GROOVE)
-		self.messageThreadFrame.pack(side=LEFT, fill=X)
+		# Buddy List Frame
+		self.buddyListFrame = Frame(self.master, borderwidth=2, relief=GROOVE, bg=bg_color)
+		self.buddyListFrame.pack(side=LEFT, fill=BOTH, expand=1)
+
+		# Buddy List Header Frame
+		self.buddyListHeaderFrame = Frame(self.buddyListFrame, borderwidth=2, relief=GROOVE, bg=bg_color)
+		self.buddyListHeaderFrame.pack(side=TOP, fill=X)
+
+		# Buddy List Header
+		self.buddyListHeaderLabel = Label(self.buddyListHeaderFrame, text="Buddy List", bg=bg_color)
+		self.buddyListHeaderLabel.pack()
+
+		# Buddy List
+		self.buddyListWindow = Listbox(self.buddyListFrame, borderwidth=2, relief=GROOVE)
+		self.buddyListWindow.bind("<Double-Button-1>", self.OnDouble)
+		self.buddyListWindow.pack(side=TOP, fill=BOTH)
+
+		#self.buddyListWindow.insert(END, "test" + "\n")
+
+		# Message Thread Frame (This is the frame that holds all the message sub-frames)
+		self.messageThreadFrame = Frame(self.master, borderwidth=2, relief=GROOVE, bg=bg_color)
+		self.messageThreadFrame.pack(side=RIGHT, fill=BOTH, expand=1)
+
+		# Message Header Frame
+		self.messageHeaderFrame = Frame(self.messageThreadFrame, borderwidth=2, relief=GROOVE, bg=bg_color)
+		self.messageHeaderFrame.pack(side=TOP, fill=X)
+
+		self.messageHeaderLabel = Label(self.messageHeaderFrame, text="Message Window", bg=bg_color)
+		self.messageHeaderLabel.pack()
 
 		# Message Display Frame
-		self.messageDisplayFrame = Frame(self.messageThreadFrame, borderwidth=2, relief=GROOVE)
+		self.messageDisplayFrame = Frame(self.messageThreadFrame, borderwidth=2, relief=GROOVE, bg=bg_color)
 		self.messageDisplayFrame.pack(side=TOP, fill=X)
 
-		self.messageWindow = Text(self.messageDisplayFrame, borderwidth=2, relief=GROOVE)
+		self.messageWindow = Text(self.messageDisplayFrame, borderwidth=2, relief=GROOVE, bg=message_window_color)
 		self.messageWindow.pack(side=TOP, fill=X)
 
 		# Message Input Frame
-		self.messageInputFrame = Frame(self.messageDisplayFrame, borderwidth=2, relief=GROOVE)
+		self.messageInputFrame = Frame(self.messageDisplayFrame, borderwidth=2, relief=GROOVE, bg=bg_color)
 		self.messageInputFrame.pack(side=BOTTOM, fill=X)
 
-		self.message_input = Entry(self.messageInputFrame, width=50)
-		self.message_input.pack()
+		self.message_input_content = StringVar()
+		self.message_input = Entry(self.messageInputFrame, textvariable=self.message_input_content)
+		self.message_input.pack(fill=X)
 
-		send_button = Button(self.messageInputFrame, text="Send", width=6, command=self.sendCallback)
-		send_button.pack(side=LEFT, padx=2, pady=2)
-
-		# Buddy List Frame
-		self.buddyListFrame = Frame(self.master, borderwidth=2, relief=GROOVE)
-		self.buddyListFrame.pack(side=RIGHT, fill=X)
-
-		self.buddyListWindow = Listbox(self.buddyListFrame, borderwidth=2, relief=GROOVE)
-		self.buddyListWindow.bind("<Double-Button-1>", self.OnDouble)
-		self.buddyListWindow.pack(side=TOP, fill=X)
+		self.send_button = Button(self.messageInputFrame, text="Send", width=6, command=self.sendCallback, bg=bg_color, fg="Blue")
+		self.send_button.bind("<Return>", self.sendCallback)
+		self.send_button.pack(side=LEFT, padx=2, pady=2)
 
 		# Bind the return key so it sends the message when you press enter
 		self.master.bind('<Return>', self.enterKeyCallback)
