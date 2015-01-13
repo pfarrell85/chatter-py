@@ -606,6 +606,9 @@ class GuiPart:
 		messageText = self.message_input.get()
 
 		if len(messageText) > 0:
+			# Clear the message input box
+			self.message_input_content.set("")
+
 			self.messageWindow.insert(INSERT, messageText + "\n")
 			self.messageWindow.pack()
 
