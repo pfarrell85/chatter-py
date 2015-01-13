@@ -486,6 +486,7 @@ class ChatServer:
 
 	def sendOutgoingMessage(self, buddy_address, buddy_port, message):
 		# TODO: This function receives a message from the GUI and sends the message to the client specified if they are connected.
+		# TODO: Should probably just pass a buddy object rather than passing the address and port
 
 		# Create a TCP/IP socket
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
