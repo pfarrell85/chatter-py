@@ -197,7 +197,7 @@ class MulticastDiscoverySender:
 		discovery_message_json = ChatterMessage.createDiscoveryMessage(self.user_name, self.host_ip)
 
 		while self.send_stop == False:
-			print "sending periodic message"
+			#print "sending periodic message"
 			self.mcastsock.sendto(discovery_message_json, (MULTICAST_DISCOVERY_ADDRESS, MULTICAST_DISCOVERY_PORT))
 			time.sleep(1)
 
@@ -614,7 +614,7 @@ class GuiPart:
 		"""
 		while self.message_queue.qsize():
 			try:
-				print "got queue message"
+				#print "got queue message"
 				q_message = self.message_queue.get(0)
 
 				if q_message.messageType == QueueMessage.DISCOVERY_MESSAGE: #TODO Add enum for buddy discovery message
