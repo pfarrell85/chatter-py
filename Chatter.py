@@ -315,10 +315,33 @@ class Buddy:
 	def getIPAddress(self):
 		return self.ip
 
+	def updateLastHeardTime(self):
+		self.last_heard = time.time()
+
+	def isActive(self):
+		return self.active
+
+	def setInactive(self):
+		self.active = False
+
+	def setActive(self):
+		self.active = True
+
+	def getTimeSinceHeard(self):
+		timeNow = time.time()
+		timeElapsed = timeNow - self.last_heard
+
+		return timeElapsed
+
+
 class BuddyList:
+
+	# TODO: Need a thread that goes over the buddy list and checks the last heard from time to the current
+	#       time and drops buddys off the list or adds them to an inactive list.
 
 	def __init__(self):
 		self.list = []
+		self.buddyTimeout = 3  #seconds since we last heard from a buddy before we set them inactive
 
 	# Any time a new buddy discovery message is received, it should pass through this function
 	# to see if we already know about this buddy, add them to the buddy list, and update their last heard from time.
@@ -330,6 +353,7 @@ class BuddyList:
 		# First check if we know about this buddy
 		new_buddy_name = buddy_q_message.message
 		have_buddy = self.checkForBuddy(new_buddy_name)
+
 		new_buddy = Buddy()
 		new_buddy.name = new_buddy_name
 		new_buddy.ip = buddy_q_message.ip[0]
@@ -337,13 +361,23 @@ class BuddyList:
 		# If we don't have this buddy in our list, add the buddy
 		if have_buddy == False:
 			print "Adding new buddy %s to the list" % new_buddy.name
+			new_buddy.updateLastHeardTime()
 			new_buddy.active = True
 			self.list.append(new_buddy)
 			return True
 		else:
 			# We already have this buddy
 			# TODO: Update their last heard from time.
-			pass
+			buddy = self.getBuddyByName(new_buddy_name)
+			buddy.updateLastHeardTime()
+
+			# Since the buddy could have been in the list but been inactive,
+			# and we have heard from them now, set them an active.
+			# This should allow them to be added back to the BuddyList in the GUI.
+			if buddy.isActive() == False:
+				buddy.setActive()
+				# Return true to indicate that we should update the GUI.
+				return True
 
 		return False
 
@@ -370,7 +404,25 @@ class BuddyList:
 		# We didnt' find the buddy in the list
 		return None
 
+	def cleanup(self):
+
+		buddyListChanged = False
+		# Scan through the list and look for buddies that we haven't heard from
+		# in a while.  If we haven't heard from them, set to inactive.
+		for index, buddy in enumerate(self.list):
+
+			if buddy.getTimeSinceHeard() > self.buddyTimeout:
+				#print "%s is now inactive" % buddy.name
+				buddy.setInactive()
+				buddyListChanged = True
+
+		return buddyListChanged
+
 class ChatServer:
+
+	"""This class handles sending and receiving messages from indivdual buddies on the network.
+
+	TODO: Add group chat messages.  This can be done over TCP first but it would be awesome to do multicast."""
 
 	def __init__(self):
 
@@ -590,6 +642,27 @@ class GuiPart:
 	def enterKeyCallback(self, event):
 		self.sendMessage()
 
+
+	def cleanupBuddyList(self):
+
+		buddyListChanged = self.buddy_list.cleanup()
+
+		# TODO: Should we just clear the ListBox here and re-add all of the buddies, or
+		# should we go through and delete each buddy that is in-active.
+		# TODO: Ideally the Listbox item would be backed directly by the BuddyList structure
+		#       but it looks like I would have to build this.
+
+		# For now, if the buddy list changed. Delete all buddies and re-add only the active ones.
+		if buddyListChanged == True:
+			self.buddyListWindow.delete(0, END)
+
+			for index, buddy in enumerate(self.buddy_list.list):
+				# If the buddy is active, add them back ot the list
+				if buddy.isActive():
+					self.buddyListWindow.insert(END, buddy.name + "\n")
+					self.buddyListWindow.pack()
+
+
 	def OnDouble(self, event):
 		widget = event.widget
 		selection=widget.curselection()
@@ -686,6 +759,9 @@ class ChatterApp:
 		Check every 100 ms if there is something new in the queue.
 		"""
 		self.gui.processIncoming()
+
+		# Run the Buddy List Cleanup to remove any buddies we haven't heard in a while.
+		self.gui.cleanupBuddyList()
 
 		if not self.running:
 			# This is the brutal stop of the system. You may want to do
