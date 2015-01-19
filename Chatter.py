@@ -130,6 +130,9 @@ class TCPSocketHelper:
 		# Create a TCP/IP socket
 		tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+		# Set the socket timeout
+		tcpsock.settimeout(1)
+
 		host_ip = NetworkUtilities.getMyIPAddress()
 
 		# Bind the socket to the port
@@ -492,8 +495,12 @@ class ChatServer:
 
 		while self.listen_stop == False:
 			# Wait for a connection
-			print >>sys.stderr, 'waiting for a connection'
-			connection, client_address = self.tcpsock.accept()
+			try:
+				print >>sys.stderr, 'waiting for a connection'
+				connection, client_address = self.tcpsock.accept()
+			except:
+				print "socket timeout, continuing"
+				continue
 
 			# TODO: Need a way of storing connections based on a connection seq no rather than client address
 			# because we could have multiple connections from a client.  Although we could also prevent this on the client side.
@@ -802,6 +809,9 @@ class ChatterApp:
 		self.message_queue = Queue.Queue()
 
 		self.master = master
+
+		# Set the Callback Handler when the "x" button is pressed.
+		self.master.protocol("WM_DELETE_WINDOW", self.endApplication)
 
 		# Set up the GUI part
 		self.gui = GuiPart(master, self.message_queue, self.endApplication)
