@@ -496,10 +496,9 @@ class ChatServer:
 		while self.listen_stop == False:
 			# Wait for a connection
 			try:
-				print >>sys.stderr, 'waiting for a connection'
+				#print >>sys.stderr, 'waiting for a connection'
 				connection, client_address = self.tcpsock.accept()
 			except:
-				print "socket timeout, continuing"
 				continue
 
 			# TODO: Need a way of storing connections based on a connection seq no rather than client address
@@ -516,30 +515,53 @@ class ChatServer:
 			try:
 				print >>sys.stderr, 'connection from', client_address
 				print "Client %s:%d" % (client_address[0], client_address[1])
-
-				# Receive the data in small chunks and retransmit it
-				data = connection.recv(1024)
-				print >>sys.stderr, 'received "%s"' % data
+				data = self.readData(connection, client_address)
 
 				if self.sendMessageToGUI:
-					message = json.loads(data)
+						self.parseAndSendToGUI(data, client_address, message_queue)
 
-					if message:
-						print "Got json message"
-						print "Username = %s" % message['username']
-						print "Message = %s" % message['message']
-
-						q_message = QueueMessage()
-						q_message.setMessageType(QueueMessage.INCOMING_MESSAGE)
-						q_message.setClientIP(client_address[0])
-						q_message.setUserName(message['username'])
-						q_message.setMessage(message['message'])
-
-						message_queue.put(q_message)
-				
+			except socket.error as ex:
+				# Ever since I added the timeout, this exception goes off and I have to read again.
+				# The way this is implemented is a bit of a hack since it just tries to read again.
+				# Could re-arrange the logic a bit so it doesn't repeat code.
+				if str(ex) == "[Errno 35] Resource temporarily unavailable":
+					time.sleep(0.1)
+					data = self.readData(connection, client_address)
+					if self.sendMessageToGUI:
+						self.parseAndSendToGUI(data, client_address, message_queue)
+				else:
+					raise ex
+			except:
+				print "ChatServer exception"
 			finally:
 				# Clean up the connection
+				print "Cleaning up the connection"
 				self.closeConnection(self.activeConnections[client_address[0]])
+
+	def readData(self, connection, client_address):
+		# Receive the data in small chunks and retransmit it
+		data = connection.recv(1024)
+		print >>sys.stderr, 'received "%s"' % data
+		print "received data"
+
+		return data
+
+	def parseAndSendToGUI(self, data, client_address, message_queue):
+
+			message = json.loads(data)
+
+			if message:
+				print "Got json message"
+				print "Username = %s" % message['username']
+				print "Message = %s" % message['message']
+
+				q_message = QueueMessage()
+				q_message.setMessageType(QueueMessage.INCOMING_MESSAGE)
+				q_message.setClientIP(client_address[0])
+				q_message.setUserName(message['username'])
+				q_message.setMessage(message['message'])
+
+				message_queue.put(q_message)
 
 	def sendOutgoingMessage(self, buddy_address, buddy_port, message):
 		# TODO: This function receives a message from the GUI and sends the message to the client specified if they are connected.
