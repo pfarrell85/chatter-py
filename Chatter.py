@@ -23,6 +23,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 
 import os
 import sys
+import argparse
 from Tkinter import *
 import time
 import Tkconstants, tkFileDialog
@@ -805,6 +806,11 @@ class ChatterApp:
 		# Set up the GUI part
 		self.gui = GuiPart(master, self.message_queue, self.endApplication)
 
+		# Parse out any configuration parameters that were passed in.
+		if kwargs is not None:
+			for key, value in kwargs.iteritems():
+				print "%s == %s" %(key,value)
+
 		# Start threads to do asynchronous I/O
 		if self.START_MULTICAST_DISCOVERY_SENDER_THREAD == True:
 			self.mcastDiscoverySender = MulticastDiscoverySender()
@@ -888,6 +894,17 @@ if __name__ == '__main__':
 	print "Starting Chatter"
 	root = Tk()
 	root.title("Chatter")
+
+	# Parse all of the command line arguments
+	parser = argparse.ArgumentParser(description='Example with non-optional arguments')
+	parser.add_argument('-i', action="store")
+
+	results = parser.parse_args()
+
+	# Check if an interface was passed in so we know which one to use.
+	if results.i != None:
+		global hostInterface
+		hostInterface = results.i
 
 	app = ChatterApp(root)
 	signal.signal(signal.SIGINT, app.signal_handler)
