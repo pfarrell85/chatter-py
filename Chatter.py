@@ -49,24 +49,73 @@ except ImportError:
 MULTICAST_DISCOVERY_ADDRESS = "238.123.45.67"
 MULTICAST_DISCOVERY_PORT = 5768
 
+class NetworkUtilities:
 
-def getMyIPAddress():
+	DEFAULT_LINUX_HOST_INTERFACE = "eth0"
+	DEFAULT_OSX_HOST_INTERFACE = "en0"
+	DEFAULT_WINDOWS_HOST_INTERFACE = ""
 
-	#socket.gethostbyname(socket.gethostname())
+	@staticmethod
+	def isValidInteraceName(interfaceName):
 
-	if HAVE_NETIFACES:
-		# TODO: Make this generic for different interfaces, run on linux to make sure it works for both eth and wifi devices.
-		dev = "en0"
-		addrs = netifaces.ifaddresses(dev)
+		# Validate the Interace Name that was passed in based on the OS we are using.
+		if platform.system() == "Darwin":
+			validInterfaceNames = ['en0']
+		elif platform.system() == "Linux":
+			validInterfaceNames = ['eth0']
 
-	try:
-		ipaddrs = addrs[netifaces.AF_INET]
-		host_ip = ipaddrs[0].get('addr')
-	except:
-		host_ip = "127.0.0.1"
-		print "Please specify IP Address here, using Host IP = %s" % host_ip
+		for index, interfaceItem in enumerate(validInterfaceNames):
+			if interfaceName == interfaceItem:
+				return True
 
-	return host_ip
+		# The passed in interface isn't valid.
+		return False
+
+	@staticmethod
+	def getMyIPAddress():
+
+		#socket.gethostbyname(socket.gethostname())
+
+		if HAVE_NETIFACES:
+			# TODO: Make this generic for different interfaces, and allow the user to specify at the command line.
+
+			# Check if an interface name was passed in on the command line when the program was started. 
+			# If not, use the default interface for the OS we are using.
+			if hostInterface == None:
+				dev = NetworkUtilities.getOSDefaultInterface()
+			elif NetworkUtilities.isValidInteraceName(hostInterface) == True:
+				print "Setting to user passed in hostInterface %s" % hostInterface
+				dev = hostInterface
+			else:
+				print "Interface %s is invalid, exiting program..." % hostInterface
+				sys.exit(-1)
+
+			addrs = netifaces.ifaddresses(dev)
+
+		try:
+			ipaddrs = addrs[netifaces.AF_INET]
+			host_ip = ipaddrs[0].get('addr')
+		except:
+			host_ip = "127.0.0.1"
+			print "Please specify IP Address here, using Host IP = %s" % host_ip
+
+		return host_ip
+
+	@staticmethod
+	def getOSDefaultInterface():
+
+		defaultHostInterface = ""
+
+		# Set OS Specific Settings
+		if platform.system() == "Darwin":
+			defaultHostInterface = NetworkUtilities.DEFAULT_OSX_HOST_INTERFACE
+		elif platform.system() == "Linux":
+			defaultHostInterface = NetworkUtilities.DEFAULT_LINUX_HOST_INTERFACE
+		else:
+			print "Error: OS %s not supported" % platform.system()
+			sys.exit(-1)
+
+		return defaultHostInterface
 
 class TCPSocketHelper:
 
@@ -80,7 +129,7 @@ class TCPSocketHelper:
 		# Create a TCP/IP socket
 		tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-		host_ip = getMyIPAddress()
+		host_ip = NetworkUtilities.getMyIPAddress()
 
 		# Bind the socket to the port
 		server_address = (host_ip, 10000)
@@ -93,7 +142,7 @@ class MulticastSocketHelper:
 
 	def __init__(self, send_socket):
 		print "Constructor"
-		self.host_ip = getMyIPAddress()
+		self.host_ip = NetworkUtilities.getMyIPAddress()
 
 		if send_socket == True:
 			self.mcastsock = self.createMcastSendSocket()
@@ -180,7 +229,7 @@ class MulticastDiscoverySender:
 
 	def __init__(self):
 		self.send_stop = False
-		self.host_ip = getMyIPAddress()
+		self.host_ip = NetworkUtilities.getMyIPAddress()
 		self.user_name = "John"
 
 		self.socketHelper = MulticastSocketHelper(send_socket=True)
@@ -242,7 +291,7 @@ class MulticastDiscoveryListener:
 		self.socketHelper = MulticastSocketHelper(send_socket=False)
 		self.mcastsock = self.socketHelper.getSocket()
 
-		self.host_ip = getMyIPAddress()
+		self.host_ip = NetworkUtilities.getMyIPAddress()
 
 	def networkReceiveThread(self, message_queue):
 
