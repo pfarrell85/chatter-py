@@ -432,7 +432,7 @@ class BuddyList:
 
 	def checkForBuddy(self, new_buddy_name):
 		for index, buddy in enumerate(self.list):
-			print index, buddy.name
+			#print index, buddy.name
 
 			# We found this buddy in our list
 			if buddy.name == new_buddy_name:
