@@ -592,6 +592,8 @@ class ChatServer:
 		    #    amount_received += len(data)
 		    #    print >>sys.stderr, 'received "%s"' % data
 
+		except:
+			print "Error: ", sys.exc_info()[0]
 		finally:
 		    print >>sys.stderr, 'closing socket'
 		    sock.close()
