@@ -933,10 +933,6 @@ class ChatterApp:
 
 if __name__ == '__main__':
 
-	print "Starting Chatter"
-	root = Tk()
-	root.title("Chatter")
-
 	# Parse all of the command line arguments
 	parser = argparse.ArgumentParser(description='Example with non-optional arguments')
 	parser.add_argument('-i', action="store")
@@ -948,6 +944,10 @@ if __name__ == '__main__':
 	if results.i != None:
 		global hostInterface
 		hostInterface = results.i
+
+	print "Starting Chatter"
+	root = Tk()
+	root.title("Chatter")
 
 	app = ChatterApp(root, user_display_name=results.name)
 	signal.signal(signal.SIGINT, app.signal_handler)
