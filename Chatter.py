@@ -49,6 +49,7 @@ except ImportError:
 
 MULTICAST_DISCOVERY_ADDRESS = "238.123.45.67"
 MULTICAST_DISCOVERY_PORT = 5768
+DEFAULT_USER_DISPLAY_NAME = "Patrick"
 
 class NetworkUtilities:
 
@@ -234,7 +235,8 @@ class MulticastDiscoverySender:
 	def __init__(self):
 		self.send_stop = False
 		self.host_ip = NetworkUtilities.getMyIPAddress()
-		self.user_name = "John"
+
+		self.user_name = DEFAULT_USER_DISPLAY_NAME
 
 		self.socketHelper = MulticastSocketHelper(send_socket=True)
 		self.mcastsock = self.socketHelper.getSocket()
@@ -838,14 +840,22 @@ class ChatterApp:
 		# Set up the GUI part
 		self.gui = GuiPart(master, self.message_queue, self.endApplication)
 
+		# Set the user name we are using
+		self.user_display_name = DEFAULT_USER_DISPLAY_NAME
+
 		# Parse out any configuration parameters that were passed in.
 		if kwargs is not None:
 			for key, value in kwargs.iteritems():
 				print "%s == %s" %(key,value)
 
+				# Check if a user display name was passed in.
+				if key == "user_display_name" and value != None:
+					self.user_display_name = value
+
 		# Start threads to do asynchronous I/O
 		if self.START_MULTICAST_DISCOVERY_SENDER_THREAD == True:
 			self.mcastDiscoverySender = MulticastDiscoverySender()
+			self.mcastDiscoverySender.setUsername(self.user_display_name)
 			self.mcastSenderThread = threading.Thread(target=self.multicastSenderThread)
 			self.mcastSenderThread.start()
 
@@ -930,6 +940,7 @@ if __name__ == '__main__':
 	# Parse all of the command line arguments
 	parser = argparse.ArgumentParser(description='Example with non-optional arguments')
 	parser.add_argument('-i', action="store")
+	parser.add_argument('-name', action="store", help="User Display Name")    # User Display name argument
 
 	results = parser.parse_args()
 
@@ -938,6 +949,6 @@ if __name__ == '__main__':
 		global hostInterface
 		hostInterface = results.i
 
-	app = ChatterApp(root)
+	app = ChatterApp(root, user_display_name=results.name)
 	signal.signal(signal.SIGINT, app.signal_handler)
 	root.mainloop()
