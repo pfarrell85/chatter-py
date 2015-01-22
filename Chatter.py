@@ -671,6 +671,11 @@ class GuiPart:
 		and then sends it to the buddy that is currently selected in the BuddyList."""
 		messageText = self.message_input.get()
 
+		# First check if there are any buddy's in the BuddyList window, if not, don't do anything.
+		# TODO: This should really just check the BuddyList object directly and see if there are any active buddies.
+		if self.buddyListWindow.size() == 0:
+			return
+
 		if len(messageText) > 0:
 			# Clear the message input box
 			self.message_input_content.set("")
@@ -685,7 +690,15 @@ class GuiPart:
 			# The ListBox contains the name right now so look up buddy by name.
 			# TODO: this is limiting because two people can't have the same name.  Change the list to
 			# be backed by objects and be able to look up by user_names.
-			buddyNameFromDisplayList = self.buddyListWindow.get(self.buddyListWindow.curselection())
+			cursorSelection = self.buddyListWindow.curselection()
+			# If there is nothing selected, and there are items in the list, select the first item (Buddy) in the list.
+			if len(cursorSelection) == 0:
+				self.buddyListWindow.selection_set(0)
+				cursorSelection = self.buddyListWindow.curselection()
+
+			# The problem is here is that we are getting the contents of the selected item in the listbox and
+			# using it to look up the buddy.  If there is nothing selected, the get function doesn't work.
+			buddyNameFromDisplayList = self.buddyListWindow.get(cursorSelection)
 
 			buddy = self.buddy_list.getBuddyByName(buddyNameFromDisplayList.strip())
 			if buddy == None:
