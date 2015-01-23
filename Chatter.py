@@ -54,6 +54,8 @@ DEFAULT_USER_DISPLAY_NAME = "Patrick"
 
 hostInterface = ""
 
+VERSION = "0.9"
+
 class NetworkUtilities:
 
 	DEFAULT_LINUX_HOST_INTERFACE = "eth0"
