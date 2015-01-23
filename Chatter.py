@@ -366,7 +366,6 @@ class ChatServer:
 
 	def __init__(self):
 
-		print "ChatServer constructor"
 		self.listen_stop = False
 
 	def runServer(self, message_queue):
@@ -426,10 +425,10 @@ class ChatServer:
 				self.closeConnection(self.activeConnections[client_address[0]])
 
 	def readData(self, connection, client_address):
-		# Receive the data in small chunks and retransmit it
+		# Receive the data in small chunks
+		# TODO: Need to keep reading until there is no more data.  Add while loop.
 		data = connection.recv(1024)
-		print >>sys.stderr, 'received "%s"' % data
-		print "received data"
+		#print >>sys.stderr, 'received "%s"' % data
 
 		return data
 
@@ -454,6 +453,8 @@ class ChatServer:
 		# TODO: This function receives a message from the GUI and sends the message to the client specified if they are connected.
 		# TODO: Should probably just pass a buddy object rather than passing the address and port
 
+		retval = True
+
 		# Create a TCP/IP socket
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -465,7 +466,7 @@ class ChatServer:
 		try:
 		    
 		    # Send data
-		    print >> sys.stderr, 'sending "%s"' % message
+		    #print >> sys.stderr, 'sending "%s"' % message
 		    sock.sendall(message)
 
 		    # Look for the response
@@ -479,9 +480,12 @@ class ChatServer:
 
 		except:
 			print "Error: ", sys.exc_info()[0]
+			retval = False
 		finally:
 		    print >>sys.stderr, 'closing socket'
 		    sock.close()
+
+		return retval
 
 	def closeConnection(self, connection):
 		print "closing connection"
@@ -492,14 +496,14 @@ class ChatServer:
 
 class GuiPart:
 
-	def __init__(self, master, message_queue, endCommand):
+	def __init__(self, master, message_queue, endCommand, userDisplayName):
 
 		self.master = master
 		self.message_queue = message_queue
 		self.stop = False
 		self.endCommand = endCommand
 		self.buddy_list = BuddyList()
-		self.myUsername = "pfarrell"
+		self.userDisplayName = userDisplayName
 
 		self.initialize()
 
@@ -680,11 +684,8 @@ class GuiPart:
 			# Clear the message input box
 			self.message_input_content.set("")
 
-			self.messageWindow.insert(INSERT, messageText + "\n")
-			self.messageWindow.pack()
-
 			message_box = {}
-			message_box['username'] = self.myUsername
+			message_box['username'] = self.userDisplayName
 			message_box['message'] = messageText
 
 			# The ListBox contains the name right now so look up buddy by name.
@@ -708,7 +709,12 @@ class GuiPart:
 			# When we hit the send button, it needs to send a messaage back into the Chat server to create a socket
 			# and send the message to the client.
 			cs = ChatServer()
-			cs.sendOutgoingMessage(buddy.ip, 10000, json.dumps(message_box))
+			sentSuccessfully = cs.sendOutgoingMessage(buddy.ip, 10000, json.dumps(message_box))
+
+			# If we successfully sent the packet, add the message to the screen.
+			if sentSuccessfully:
+				self.messageWindow.insert(INSERT, "Me: " + messageText + "\n")
+				self.messageWindow.pack()
 
 	def helpCallback(self):
 		box.showinfo("Information", "Chatter")
@@ -739,9 +745,6 @@ class ChatterApp:
 		# Set the Callback Handler when the "x" button is pressed.
 		self.master.protocol("WM_DELETE_WINDOW", self.endApplication)
 
-		# Set up the GUI part
-		self.gui = GuiPart(master, self.message_queue, self.endApplication)
-
 		# Set the user name we are using
 		self.user_display_name = DEFAULT_USER_DISPLAY_NAME
 
@@ -753,6 +756,9 @@ class ChatterApp:
 				# Check if a user display name was passed in.
 				if key == "user_display_name" and value != None:
 					self.user_display_name = value
+
+		# Set up the GUI part
+		self.gui = GuiPart(master, self.message_queue, self.endApplication, self.user_display_name)
 
 		# Start threads to do asynchronous I/O
 		if self.START_MULTICAST_DISCOVERY_SENDER_THREAD == True:
