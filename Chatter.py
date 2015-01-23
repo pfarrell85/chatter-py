@@ -52,6 +52,8 @@ MULTICAST_DISCOVERY_ADDRESS = "238.123.45.67"
 MULTICAST_DISCOVERY_PORT = 5768
 DEFAULT_USER_DISPLAY_NAME = "Patrick"
 
+hostInterface = ""
+
 class NetworkUtilities:
 
 	DEFAULT_LINUX_HOST_INTERFACE = "eth0"
@@ -84,7 +86,7 @@ class NetworkUtilities:
 
 			# Check if an interface name was passed in on the command line when the program was started. 
 			# If not, use the default interface for the OS we are using.
-			if hostInterface == None:
+			if hostInterface == None or hostInterface == "":
 				dev = NetworkUtilities.getOSDefaultInterface()
 			elif NetworkUtilities.isValidInteraceName(hostInterface) == True:
 				print "Setting to user passed in hostInterface %s" % hostInterface
@@ -850,7 +852,6 @@ if __name__ == '__main__':
 
 	# Check if an interface was passed in so we know which one to use.
 	if results.i != None:
-		global hostInterface
 		hostInterface = results.i
 
 	print "Starting Chatter"
