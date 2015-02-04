@@ -66,14 +66,17 @@ class NetworkUtilities:
 	@staticmethod
 	def isValidInteraceName(interfaceName):
 
+		# There has to be a better way to do this.
 		# Validate the Interace Name that was passed in based on the OS we are using.
 		if platform.system() == "Darwin":
-			validInterfaceNames = ['en0']
+			interfaceNameSubString = interfaceName[:2]
+			validInterfaceNamePrefixes = ['en']
 		elif platform.system() == "Linux":
-			validInterfaceNames = ['eth0']
+			interfaceNameSubString = interfaceName[:3]
+			validInterfaceNamePrefixes = ['eth']
 
 		for index, interfaceItem in enumerate(validInterfaceNames):
-			if interfaceName == interfaceItem:
+			if interfaceNameSubString == interfaceItem:
 				return True
 
 		# The passed in interface isn't valid.
@@ -248,6 +251,7 @@ class MulticastDiscoverySender:
 		self.mcastsock = self.socketHelper.getSocket()
 
 	def setUsername(self, newUsername):
+		print "discoverySender setUserName %s" % newUsername
 		self.user_name = newUsername
 
 	def sendPeriodicDiscoveryMessageThread(self):
@@ -499,9 +503,24 @@ class ChatServer:
 	def stopListen(self):
 		self.listen_stop = True
 
+class popupWindow(object):
+
+	def __init__(self,master):
+		top=self.top=Toplevel(master)
+		self.l=Label(top,text="Hello World")
+		self.l.pack()
+		self.e=Entry(top)
+		self.e.pack()
+		self.b=Button(top,text='Ok',command=self.cleanup)
+		self.b.pack()
+
+	def cleanup(self):
+		self.value=self.e.get()
+		self.top.destroy()
+
 class GuiPart:
 
-	def __init__(self, master, message_queue, endCommand, userDisplayName):
+	def __init__(self, master, message_queue, endCommand, userDisplayName, configChangeCallback):
 
 		self.master = master
 		self.message_queue = message_queue
@@ -509,6 +528,7 @@ class GuiPart:
 		self.endCommand = endCommand
 		self.buddy_list = BuddyList()
 		self.userDisplayName = userDisplayName
+		self.configChangeCallback = configChangeCallback
 
 		self.initialize()
 
@@ -601,7 +621,9 @@ class GuiPart:
 
 					# Check if we already know about this buddy.
 					if self.buddy_list.processBuddyDiscoveryMessage(q_message):
-						self.buddyListWindow.insert(END, buddy_name + "\n")
+						# If true was returned, it means we didn't know about the buddy or he was inactive.
+						# We should add the buddy back to the list.
+						self.buddyListWindow.insert(END, buddy_name.strip() + "\n")
 						self.buddyListWindow.pack()
 
 				elif q_message.messageType == QueueMessage.INCOMING_MESSAGE:
@@ -643,6 +665,11 @@ class GuiPart:
 
 		NewWin.protocol("WM_DELETE_WINDOW", quit_win)
 
+	def updateBuddyListGUI(self):
+		# This will be a replacement for cleanupBuddyList because it will maintain the buddy list GUI by adding and deleting everything
+		# here rather than in two places.
+		pass
+
 	def cleanupBuddyList(self):
 
 		buddyListChanged = self.buddy_list.cleanup()
@@ -673,7 +700,15 @@ class GuiPart:
 		self.sendMessage()
 
 	def setUsernameCallback(self):
-		pass
+		self.w = popupWindow(self.master)
+		self.master.wait_window(self.w.top)
+		print "Setting userDisplayName %s" % self.w.value
+		self.userDisplayName = self.w.value
+		self.configChangeCallback(self.userDisplayName)
+		# Now we have to somehow propagate this back to the discovery sender thread.
+
+	def entryValue(self):
+		return self.w.value
 
 	def sendMessage(self):
 		"""This function gets the message from the user imput box, packages it up into a JSON object
@@ -689,9 +724,8 @@ class GuiPart:
 			# Clear the message input box
 			self.message_input_content.set("")
 
-			message_box = {}
-			message_box['username'] = self.userDisplayName
-			message_box['message'] = messageText
+			# Get a dictionary that contains the message box we are going to send.
+			message_box = ChatterMessage.createChatMessage(self.userDisplayName, messageText)
 
 			# The ListBox contains the name right now so look up buddy by name.
 			# TODO: this is limiting because two people can't have the same name.  Change the list to
@@ -763,7 +797,7 @@ class ChatterApp:
 					self.user_display_name = value
 
 		# Set up the GUI part
-		self.gui = GuiPart(master, self.message_queue, self.endApplication, self.user_display_name)
+		self.gui = GuiPart(master, self.message_queue, self.endApplication, self.user_display_name, self.guiConfigChange)
 
 		# Start threads to do asynchronous I/O
 		if self.START_MULTICAST_DISCOVERY_SENDER_THREAD == True:
@@ -791,7 +825,12 @@ class ChatterApp:
 		"""
 		Check every 100 ms if there is something new in the queue.
 		"""
+		# TODO: Maybe instead here we should first process all messages off the queue to update our current state,
+		# Then we should update the buddy list.  I have a feeling we are somethings getting into the buddy flickering thing
+		# because the buddy is being added by this function, then immediately deleted by the cleanup, so you are in an endless loop.
 		self.gui.processIncoming()
+		# Maybe we can do a check if the username changed here and call setUsername on the discovery sender here.
+		# This is more like polling though rather than being event driven.
 
 		# Run the Buddy List Cleanup to remove any buddies we haven't heard in a while.
 		self.gui.cleanupBuddyList()
@@ -802,6 +841,14 @@ class ChatterApp:
 			time.sleep(1)
 			sys.exit(1)
 		self.master.after(100, self.periodicCall)
+
+	def guiConfigChange(self, userDisplayName):
+		"""This is the callback for when there is a configuration change in the GUI that
+		needs to be propagated to other parts of the program."""
+		print "guiConfigChange: userDisplayName %s" % userDisplayName
+		self.user_display_name = userDisplayName
+		self.mcastDiscoverySender.setUsername(self.user_display_name)
+
 
 	def multicastSenderThread(self):
 		"""
@@ -848,7 +895,7 @@ if __name__ == '__main__':
 
 	# Parse all of the command line arguments
 	parser = argparse.ArgumentParser(description='Example with non-optional arguments')
-	parser.add_argument('-i', action="store")
+	parser.add_argument('-i', action="store", help="Host computer network interface to use")
 	parser.add_argument('-name', action="store", help="User Display Name")    # User Display name argument
 
 	results = parser.parse_args()

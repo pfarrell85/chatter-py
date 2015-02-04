@@ -21,6 +21,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 import json
 
 MESSAGE_VERSION = 1
+CHAT_MESSAGE_VERSION = 1
 
 class ChatterMessage:
 
@@ -50,7 +51,15 @@ class ChatterMessage:
 
 		return discovery_message
 
-	#def createChatMessage(self):
+	@staticmethod
+	def createChatMessage(userDisplayName, messageText):
+
+		message_box = {}
+		message_box['v'] = str(CHAT_MESSAGE_VERSION)
+		message_box['username'] = userDisplayName
+		message_box['message'] = messageText
+
+		return message_box
 
 	#def parseChatterMessage(self):
 		"""This function determines the version and the type of the message that was sent, then parses
