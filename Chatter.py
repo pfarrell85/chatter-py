@@ -75,7 +75,7 @@ class NetworkUtilities:
 			interfaceNameSubString = interfaceName[:3]
 			validInterfaceNamePrefixes = ['eth']
 
-		for index, interfaceItem in enumerate(validInterfaceNames):
+		for index, interfaceItem in enumerate(validInterfaceNamePrefixes):
 			if interfaceNameSubString == interfaceItem:
 				return True
 
