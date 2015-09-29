@@ -560,9 +560,17 @@ class GuiPart:
 		self.buddyListHeaderFrame = Frame(self.buddyListFrame, borderwidth=2, relief=GROOVE, bg=bg_color)
 		self.buddyListHeaderFrame.pack(side=TOP, fill=X)
 
-		# Buddy List Header
+		# Buddy List Header Label
 		self.buddyListHeaderLabel = Label(self.buddyListHeaderFrame, text="Buddy List", bg=bg_color)
 		self.buddyListHeaderLabel.pack()
+
+		# User Name Frame
+		self.userNameFrame = Frame(self.buddyListFrame, borderwidth=2, relief=GROOVE, bg=bg_color)
+		self.userNameFrame.pack(side=TOP, fill=X)
+
+		# Buddy List My User Name Label
+		self.buddyListMyUserName = Label(self.userNameFrame, text="My User Name: " + self.userDisplayName, bg=bg_color)
+		self.buddyListMyUserName.pack()
 
 		# Buddy List
 		self.buddyListWindow = Listbox(self.buddyListFrame, borderwidth=2, relief=GROOVE)
@@ -704,8 +712,10 @@ class GuiPart:
 		self.master.wait_window(self.w.top)
 		print "Setting userDisplayName %s" % self.w.value
 		self.userDisplayName = self.w.value
+		# TODO: Change this into a function so we don't have repeated code.
+		self.buddyListMyUserName.config(text="My User Name: " + self.userDisplayName)
 		self.configChangeCallback(self.userDisplayName)
-		# Now we have to somehow propagate this back to the discovery sender thread.
+		# TODO: Now we have to somehow propagate this back to the discovery sender thread.
 
 	def entryValue(self):
 		return self.w.value
